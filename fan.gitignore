@@ -1,0 +1,11 @@
+# Dépendances
+node_modules/
+package-lock.json
+
+# Fichiers temporaires
+.DS_Store
+*.log
+
+# Base de données (optionnel si vous voulez conserver un fichier vide)
+backend/db/blog.db
+*.sqlite
