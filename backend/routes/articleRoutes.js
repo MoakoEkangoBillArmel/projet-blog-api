@@ -14,167 +14,61 @@ const articleController = require('../controllers/articleController');
  *       properties:
  *         id:
  *           type: integer
- *           description: ID auto-généré de l'article
+ *           description: Identifiant unique auto-généré
  *         title:
  *           type: string
  *           description: Titre de l'article
  *         content:
  *           type: string
- *           description: Contenu de l'article
+ *           description: Contenu détaillé de l'article
  *         author:
  *           type: string
- *           description: Nom de l'auteur
+ *           description: Nom ou pseudo de l'auteur
  *         date:
  *           type: string
  *           format: date
- *           description: Date de création (YYYY-MM-DD)
+ *           description: Date de publication (YYYY-MM-DD)
  *         category:
  *           type: string
- *           description: Catégorie de l'article
+ *           description: Catégorie thématique
  *         tags:
  *           type: string
- *           description: Tags séparés par des virgules
- *     ArticleInput:
- *       type: object
- *       required:
- *         - title
- *         - author
- *       properties:
- *         title:
+ *           description: Mots-clés séparés par des virgules
+ *         read_time:
+ *           type: integer
+ *           description: Temps de lecture estimé en minutes
+ *         views:
+ *           type: integer
+ *           description: Nombre de vues de l'article
+ *         status:
  *           type: string
- *           description: Titre de l'article
- *         content:
- *           type: string
- *           description: Contenu de l'article
- *         author:
- *           type: string
- *           description: Nom de l'auteur
- *         category:
- *           type: string
- *           description: Catégorie de l'article
- *         tags:
- *           type: string
- *           description: Tags séparés par des virgules
+ *           enum: [draft, published]
+ *           description: Statut de publication
  *     ErrorResponse:
  *       type: object
  *       properties:
  *         error:
  *           type: string
- *           description: Message d'erreur
  */
 
 /**
  * @swagger
- * /api/articles:
- *   post:
- *     summary: Créer un nouvel article
- *     description: Crée un article avec les informations fournies. La date est générée automatiquement.
- *     tags:
- *       - Articles
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/ArticleInput'
- *           example:
- *             title: "Mon premier article"
- *             content: "Ceci est le contenu de mon article..."
- *             author: "John Doe"
- *             category: "Technologie"
- *             tags: "JavaScript,Node.js,API"
- *     responses:
- *       201:
- *         description: Article créé avec succès
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 id:
- *                   type: integer
- *                 message:
- *                   type: string
- *             example:
- *               id: 1
- *               message: "Article créé avec succès"
- *       400:
- *         description: Requête invalide - Titre ou auteur manquant
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- *             example:
- *               error: "Le titre et l'auteur sont obligatoires"
- *       500:
- *         description: Erreur serveur
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- */
-router.post('/', articleController.createArticle);
-
-/**
- * @swagger
- * /api/articles:
+ * /api/articles/stats/summary:
  *   get:
- *     summary: Récupérer tous les articles
- *     description: Retourne la liste complète des articles, avec possibilité de filtrage
+ *     summary: Récupérer les statistiques globales du blog
  *     tags:
- *       - Articles
- *     parameters:
- *       - in: query
- *         name: category
- *         schema:
- *           type: string
- *         description: Filtrer par catégorie (exact match)
- *         example: "Technologie"
- *       - in: query
- *         name: author
- *         schema:
- *           type: string
- *         description: Filtrer par auteur (exact match)
- *         example: "John Doe"
- *       - in: query
- *         name: date
- *         schema:
- *           type: string
- *           format: date
- *         description: Filtrer par date (YYYY-MM-DD)
- *         example: "2026-03-22"
+ *       - Statistiques
  *     responses:
  *       200:
- *         description: Liste des articles récupérée avec succès
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Article'
- *             example:
- *               - id: 1
- *                 title: "Mon premier article"
- *                 content: "Ceci est le contenu..."
- *                 author: "John Doe"
- *                 date: "2026-03-22"
- *                 category: "Technologie"
- *                 tags: "JavaScript,Node.js,API"
- *       500:
- *         description: Erreur serveur
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *         description: Statistiques complètes
  */
-router.get('/', articleController.getAllArticles);
+router.get('/stats/summary', articleController.getStats);
 
 /**
  * @swagger
  * /api/articles/search:
  *   get:
- *     summary: Rechercher des articles
- *     description: Recherche les articles dont le titre ou le contenu contient le texte spécifié
+ *     summary: Recherche multi-champs dans les articles
  *     tags:
  *       - Articles
  *     parameters:
@@ -183,173 +77,65 @@ router.get('/', articleController.getAllArticles);
  *         required: true
  *         schema:
  *           type: string
- *         description: Texte à rechercher dans le titre ou le contenu
- *         example: "JavaScript"
  *     responses:
  *       200:
- *         description: Résultats de recherche
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Article'
- *             example:
- *               - id: 1
- *                 title: "Mon premier article"
- *                 content: "Ceci est le contenu avec JavaScript..."
- *                 author: "John Doe"
- *                 date: "2026-03-22"
- *                 category: "Technologie"
- *                 tags: "JavaScript,Node.js,API"
- *       400:
- *         description: Paramètre de recherche manquant
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- *             example:
- *               error: "Paramètre de recherche manquant"
- *       500:
- *         description: Erreur serveur
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *         description: Liste des articles correspondants
  */
 router.get('/search', articleController.searchArticles);
 
 /**
  * @swagger
- * /api/articles/{id}:
+ * /api/articles:
  *   get:
- *     summary: Récupérer un article par son ID
- *     description: Retourne les détails d'un article spécifique
+ *     summary: Récupérer tous les articles (avec filtres et pagination)
  *     tags:
  *       - Articles
  *     parameters:
- *       - in: path
- *         name: id
- *         required: true
+ *       - in: query
+ *         name: category
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: author
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: tag
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: page
  *         schema:
  *           type: integer
- *         description: ID de l'article à récupérer
- *         example: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
  *     responses:
  *       200:
- *         description: Article trouvé
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Article'
- *             example:
- *               id: 1
- *               title: "Mon premier article"
- *               content: "Ceci est le contenu de mon article..."
- *               author: "John Doe"
- *               date: "2026-03-22"
- *               category: "Technologie"
- *               tags: "JavaScript,Node.js,API"
- *       404:
- *         description: Article non trouvé
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- *             example:
- *               error: "Article non trouvé"
- *       500:
- *         description: Erreur serveur
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- */
-router.get('/:id', articleController.getArticleById);
-
-/**
- * @swagger
- * /api/articles/{id}:
- *   put:
- *     summary: Modifier un article
- *     description: Met à jour les informations d'un article existant
+ *         description: Liste des articles
+ *   post:
+ *     summary: Créer un nouvel article
  *     tags:
  *       - Articles
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *         description: ID de l'article à modifier
- *         example: 1
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             properties:
- *               title:
- *                 type: string
- *                 description: Nouveau titre
- *               content:
- *                 type: string
- *                 description: Nouveau contenu
- *               author:
- *                 type: string
- *                 description: Nouvel auteur
- *               category:
- *                 type: string
- *                 description: Nouvelle catégorie
- *               tags:
- *                 type: string
- *                 description: Nouveaux tags
- *           example:
- *             title: "Titre modifié"
- *             content: "Contenu mis à jour"
- *             category: "Développement Web"
+ *             $ref: '#/components/schemas/Article'
  *     responses:
- *       200:
- *         description: Article mis à jour avec succès
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *             example:
- *               message: "Article mis à jour"
- *       400:
- *         description: Requête invalide
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- *       404:
- *         description: Article non trouvé
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- *             example:
- *               error: "Article non trouvé ou aucune modification"
- *       500:
- *         description: Erreur serveur
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *       201:
+ *         description: Article créé avec succès
  */
-router.put('/:id', articleController.updateArticle);
+router.get('/', articleController.getAllArticles);
+router.post('/', articleController.createArticle);
 
 /**
  * @swagger
  * /api/articles/{id}:
- *   delete:
- *     summary: Supprimer un article
- *     description: Supprime un article existant de la base de données
+ *   get:
+ *     summary: Récupérer un article par ID
  *     tags:
  *       - Articles
  *     parameters:
@@ -358,35 +144,38 @@ router.put('/:id', articleController.updateArticle);
  *         required: true
  *         schema:
  *           type: integer
- *         description: ID de l'article à supprimer
- *         example: 1
  *     responses:
  *       200:
- *         description: Article supprimé avec succès
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *             example:
- *               message: "Article supprimé"
- *       404:
- *         description: Article non trouvé
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- *             example:
- *               error: "Article non trouvé"
- *       500:
- *         description: Erreur serveur
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *         description: Détails de l'article
+ *   put:
+ *     summary: Mettre à jour un article
+ *     tags:
+ *       - Articles
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Article mis à jour
+ *   delete:
+ *     summary: Supprimer un article
+ *     tags:
+ *       - Articles
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Article supprimé
  */
+router.get('/:id', articleController.getArticleById);
+router.put('/:id', articleController.updateArticle);
 router.delete('/:id', articleController.deleteArticle);
 
 module.exports = router;

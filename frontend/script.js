@@ -1,261 +1,323 @@
-const API_URL = '/api/articles';
+const API_BASE = '/api/articles';
 
 let allArticles = [];
 let currentPage = 1;
-const itemsPerPage = 6;
-let currentFilters = {
-    searchText: '',
+const itemsPerPage = 5;
+let activeFilters = {
+    search: '',
     category: '',
     author: '',
     date: ''
 };
+let categoryChartInstance = null;
 
-// Éléments DOM
+// DOM Elements
 const articlesList = document.getElementById('articlesList');
+const resultsCount = document.getElementById('resultsCount');
 const paginationControls = document.getElementById('paginationControls');
 const articleForm = document.getElementById('articleForm');
-const searchBtn = document.getElementById('searchBtn');
-const resetBtn = document.getElementById('resetBtn');
 const searchText = document.getElementById('searchText');
+const resetBtn = document.getElementById('resetBtn');
 const filterCategory = document.getElementById('filterCategory');
 const filterAuthor = document.getElementById('filterAuthor');
 const filterDate = document.getElementById('filterDate');
+const searchBtn = document.getElementById('searchBtn');
+
+// KPIs
+const kpiTotal = document.getElementById('kpiTotalArticles');
+const kpiCat = document.getElementById('kpiCategories');
+const kpiViews = document.getElementById('kpiViews');
+
+// Modal Elements
 const editModal = document.getElementById('editModal');
 const editForm = document.getElementById('editForm');
-const closeModal = document.querySelector('.close');
-let chart;
+const modalCloseBtn = document.querySelector('.modal-close-btn');
+const modalCancel = document.querySelector('.modal-cancel');
+const themeToggle = document.getElementById('themeToggle');
 
-// Toast helper
+// Toast Notification
 function showToast(message, type = 'info') {
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
     const icon = type === 'success' ? '✅' : (type === 'error' ? '❌' : 'ℹ️');
-    toast.innerHTML = `<i>${icon}</i><span>${message}</span>`;
+    toast.innerHTML = `<span>${icon}</span> <span>${escapeHtml(message)}</span>`;
     container.appendChild(toast);
+
     setTimeout(() => {
         toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        toast.style.transition = 'all 0.3s ease';
         setTimeout(() => toast.remove(), 300);
-    }, 3000);
+    }, 3500);
 }
 
-// Fetch all articles
-async function fetchArticles() {
+// Fetch Stats
+async function fetchStats() {
     try {
-        const response = await fetch(API_URL);
-        if (!response.ok) throw new Error('Erreur réseau');
-        allArticles = await response.json();
-        applyFilters();
-        updateChart(allArticles);
-    } catch (error) {
-        showToast('Erreur lors du chargement des articles', 'error');
+        const res = await fetch(`${API_BASE}/stats/summary`);
+        if (!res.ok) return;
+        const stats = await res.json();
+        if (kpiTotal) kpiTotal.textContent = stats.totalArticles;
+        if (kpiCat) kpiCat.textContent = stats.categories.length;
+        if (kpiViews) kpiViews.textContent = stats.totalViews;
+        updateChart(stats.categories);
+    } catch (e) {
+        console.warn('Impossible de charger les statistiques:', e);
     }
 }
 
-// Apply search/filters
+// Fetch Articles
+async function fetchArticles() {
+    try {
+        const res = await fetch(API_BASE);
+        if (!res.ok) throw new Error('Erreur réseau');
+        allArticles = await res.json();
+        applyFilters();
+        fetchStats();
+    } catch (err) {
+        showToast('Impossible de joindre le serveur API.', 'error');
+        if (articlesList) {
+            articlesList.innerHTML = `
+                <div class="empty-state">
+                    <p>⚠️ Serveur indisponible. Vérifiez que le backend Express est en cours d'exécution.</p>
+                </div>
+            `;
+        }
+    }
+}
+
+// Apply Filters
 function applyFilters() {
     let filtered = [...allArticles];
 
-    if (currentFilters.searchText) {
-        const searchLower = currentFilters.searchText.toLowerCase();
-        filtered = filtered.filter(article =>
-            article.title.toLowerCase().includes(searchLower) ||
-            (article.content && article.content.toLowerCase().includes(searchLower))
+    const q = activeFilters.search.toLowerCase().trim();
+    if (q) {
+        filtered = filtered.filter(a =>
+            (a.title && a.title.toLowerCase().includes(q)) ||
+            (a.content && a.content.toLowerCase().includes(q)) ||
+            (a.tags && a.tags.toLowerCase().includes(q)) ||
+            (a.author && a.author.toLowerCase().includes(q)) ||
+            (a.category && a.category.toLowerCase().includes(q))
         );
-    }
-    if (currentFilters.category) {
-        filtered = filtered.filter(article =>
-            article.category && article.category.toLowerCase() === currentFilters.category.toLowerCase()
-        );
-    }
-    if (currentFilters.author) {
-        filtered = filtered.filter(article =>
-            article.author.toLowerCase() === currentFilters.author.toLowerCase()
-        );
-    }
-    if (currentFilters.date) {
-        filtered = filtered.filter(article => article.date === currentFilters.date);
     }
 
+    if (activeFilters.category) {
+        const cat = activeFilters.category.toLowerCase().trim();
+        filtered = filtered.filter(a => a.category && a.category.toLowerCase().includes(cat));
+    }
+
+    if (activeFilters.author) {
+        const aut = activeFilters.author.toLowerCase().trim();
+        filtered = filtered.filter(a => a.author && a.author.toLowerCase().includes(aut));
+    }
+
+    if (activeFilters.date) {
+        filtered = filtered.filter(a => a.date === activeFilters.date);
+    }
+
+    resultsCount.textContent = `${filtered.length} article(s) trouvé(s)`;
     renderPaginated(filtered);
 }
 
-// Render paginated articles
+// Pagination
 function renderPaginated(articles) {
     const totalPages = Math.ceil(articles.length / itemsPerPage);
     if (currentPage > totalPages) currentPage = totalPages || 1;
-    const start = (currentPage - 1) * itemsPerPage;
-    const end = start + itemsPerPage;
-    const pageArticles = articles.slice(start, end);
 
-    displayArticles(pageArticles);
-    renderPagination(totalPages, currentPage);
+    const start = (currentPage - 1) * itemsPerPage;
+    const pageArticles = articles.slice(start, start + itemsPerPage);
+
+    renderArticles(pageArticles);
+    renderPaginationButtons(totalPages);
 }
 
-// Display articles as cards
-function displayArticles(articles) {
-    if (articles.length === 0) {
-        articlesList.innerHTML = '<p class="no-articles">Aucun article trouvé.</p>';
+// Render Article Cards
+function renderArticles(articles) {
+    if (!articles || articles.length === 0) {
+        articlesList.innerHTML = `
+            <div style="padding: 40px; text-align: center; color: var(--text-muted);">
+                <p style="font-size: 32px; margin-bottom: 8px;">📭</p>
+                <p>Aucun article ne correspond à votre recherche.</p>
+            </div>
+        `;
         return;
     }
-    articlesList.innerHTML = articles.map(article => `
-        <div class="article-card">
-            <h3>${escapeHtml(article.title)}</h3>
-            <div class="meta">
-                <span>✍️ ${escapeHtml(article.author)}</span>
-                <span>📅 ${article.date}</span>
-                ${article.category ? `<span>🏷️ ${escapeHtml(article.category)}</span>` : ''}
+
+    articlesList.innerHTML = articles.map(a => `
+        <article class="article-item" data-id="${a.id}">
+            <div class="article-top">
+                <div>
+                    <h3 class="article-title">${escapeHtml(a.title)}</h3>
+                    <div class="article-meta">
+                        <span>👤 <strong>${escapeHtml(a.author)}</strong></span>
+                        <span>📅 ${a.date}</span>
+                        <span class="meta-chip">🏷️ ${escapeHtml(a.category || 'Général')}</span>
+                        <span>⏱️ ${a.read_time || 1} min</span>
+                        <span>👁️ ${a.views || 0} vues</span>
+                    </div>
+                </div>
+                <div class="article-actions">
+                    <button class="btn-icon edit-btn" data-id="${a.id}" title="Modifier">✏️ Éditer</button>
+                    <button class="btn-icon delete delete-btn" data-id="${a.id}" title="Supprimer">🗑️</button>
+                </div>
             </div>
-            <div class="content">${escapeHtml(article.content || '')}</div>
-            ${article.tags ? `
-                <div class="tags">
-                    ${article.tags.split(',').map(tag => `<span class="tag">${escapeHtml(tag.trim())}</span>`).join('')}
+            ${a.content ? `<div class="article-body">${escapeHtml(a.content)}</div>` : ''}
+            ${a.tags ? `
+                <div class="article-tags">
+                    ${a.tags.split(',').filter(t => t.trim()).map(t => `<span class="tag-item">#${escapeHtml(t.trim())}</span>`).join('')}
                 </div>
             ` : ''}
-            <div class="article-actions">
-                <button class="btn-icon edit" data-id="${article.id}">✏️</button>
-                <button class="btn-icon delete" data-id="${article.id}">🗑️</button>
-            </div>
-        </div>
+        </article>
     `).join('');
 
-    // Attach event listeners to buttons
-    document.querySelectorAll('.edit').forEach(btn => {
-        btn.addEventListener('click', () => openEditModal(parseInt(btn.dataset.id)));
+    // Attach listeners
+    document.querySelectorAll('.edit-btn').forEach(btn => {
+        btn.addEventListener('click', () => openEditModal(btn.dataset.id));
     });
-    document.querySelectorAll('.delete').forEach(btn => {
-        btn.addEventListener('click', () => deleteArticle(parseInt(btn.dataset.id)));
+
+    document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', () => handleDelete(btn.dataset.id));
     });
 }
 
-// Render pagination buttons
-function renderPagination(totalPages, current) {
+// Pagination Controls
+function renderPaginationButtons(totalPages) {
     if (totalPages <= 1) {
         paginationControls.innerHTML = '';
         return;
     }
-    let html = '<button class="page-btn" data-page="prev" ${current===1?"disabled":""}>‹</button>';
+
+    let html = `<button class="page-btn" data-action="prev" ${currentPage === 1 ? 'disabled' : ''}>←</button>`;
     for (let i = 1; i <= totalPages; i++) {
-        html += `<button class="page-btn ${i === current ? 'active' : ''}" data-page="${i}">${i}</button>`;
+        html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
     }
-    html += `<button class="page-btn" data-page="next" ${current===totalPages?"disabled":""}>›</button>`;
+    html += `<button class="page-btn" data-action="next" ${currentPage === totalPages ? 'disabled' : ''}>→</button>`;
+
     paginationControls.innerHTML = html;
 
     paginationControls.querySelectorAll('.page-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const page = btn.dataset.page;
-            if (page === 'prev' && currentPage > 1) currentPage--;
-            else if (page === 'next' && currentPage < totalPages) currentPage++;
-            else if (!isNaN(page)) currentPage = parseInt(page);
+        btn.addEventListener('click', () => {
+            if (btn.dataset.action === 'prev' && currentPage > 1) currentPage--;
+            else if (btn.dataset.action === 'next' && currentPage < totalPages) currentPage++;
+            else if (btn.dataset.page) currentPage = parseInt(btn.dataset.page, 10);
             applyFilters();
         });
     });
 }
 
-// Create article
+// Handle Form Submission (Create)
 articleForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const title = document.getElementById('title').value.trim();
-    const content = document.getElementById('content').value.trim();
     const author = document.getElementById('author').value.trim();
     const category = document.getElementById('category').value.trim();
     const tags = document.getElementById('tags').value.trim();
+    const content = document.getElementById('content').value.trim();
 
     if (!title || !author) {
-        showToast('Titre et auteur sont obligatoires', 'error');
+        showToast('Titre et auteur sont requis.', 'error');
         return;
     }
 
-    const newArticle = { title, content, author, category, tags };
-
     try {
-        const response = await fetch(API_URL, {
+        const res = await fetch(API_BASE, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(newArticle)
+            body: JSON.stringify({ title, author, category, tags, content })
         });
-        if (!response.ok) throw new Error('Erreur création');
-        showToast('Article créé avec succès', 'success');
+
+        if (!res.ok) throw new Error('Échec de la publication');
+        showToast('Article publié avec succès !', 'success');
         articleForm.reset();
+        document.getElementById('category').value = 'Technologie';
         fetchArticles();
-    } catch (error) {
-        showToast('Erreur lors de la création', 'error');
+    } catch (err) {
+        showToast(err.message, 'error');
     }
 });
 
-// Delete article
-async function deleteArticle(id) {
-    if (!confirm('Voulez-vous vraiment supprimer cet article ?')) return;
+// Handle Delete
+async function handleDelete(id) {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cet article ?')) return;
+
     try {
-        const response = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
-        if (!response.ok) throw new Error('Erreur suppression');
-        showToast('Article supprimé', 'success');
+        const res = await fetch(`${API_BASE}/${id}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error('Échec de la suppression');
+        showToast('Article supprimé.', 'success');
         fetchArticles();
-    } catch (error) {
-        showToast('Erreur lors de la suppression', 'error');
+    } catch (err) {
+        showToast(err.message, 'error');
     }
 }
 
-// Open edit modal with article data
+// Edit Modal Handling
 async function openEditModal(id) {
     try {
-        const response = await fetch(`${API_URL}/${id}`);
-        if (!response.ok) throw new Error('Article non trouvé');
-        const article = await response.json();
+        const res = await fetch(`${API_BASE}/${id}`);
+        if (!res.ok) throw new Error('Article non trouvé');
+        const article = await res.json();
+
         document.getElementById('editId').value = article.id;
         document.getElementById('editTitle').value = article.title;
-        document.getElementById('editContent').value = article.content || '';
         document.getElementById('editAuthor').value = article.author;
         document.getElementById('editCategory').value = article.category || '';
         document.getElementById('editTags').value = article.tags || '';
-        editModal.style.display = 'block';
-    } catch (error) {
-        showToast('Erreur chargement article', 'error');
+        document.getElementById('editContent').value = article.content || '';
+
+        editModal.classList.add('active');
+    } catch (err) {
+        showToast(err.message, 'error');
     }
 }
 
-// Update article
+function closeEditModal() {
+    editModal.classList.remove('active');
+}
+
+modalCloseBtn.onclick = closeEditModal;
+modalCancel.onclick = closeEditModal;
+editModal.querySelector('.modal-backdrop').onclick = closeEditModal;
+
 editForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = document.getElementById('editId').value;
     const title = document.getElementById('editTitle').value.trim();
-    const content = document.getElementById('editContent').value.trim();
     const author = document.getElementById('editAuthor').value.trim();
     const category = document.getElementById('editCategory').value.trim();
     const tags = document.getElementById('editTags').value.trim();
-
-    if (!title || !author) {
-        showToast('Titre et auteur sont obligatoires', 'error');
-        return;
-    }
+    const content = document.getElementById('editContent').value.trim();
 
     try {
-        const response = await fetch(`${API_URL}/${id}`, {
+        const res = await fetch(`${API_BASE}/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title, content, author, category, tags })
+            body: JSON.stringify({ title, author, category, tags, content })
         });
-        if (!response.ok) throw new Error('Erreur mise à jour');
-        showToast('Article mis à jour', 'success');
-        editModal.style.display = 'none';
+        if (!res.ok) throw new Error('Échec de la mise à jour');
+        showToast('Article mis à jour avec succès.', 'success');
+        closeEditModal();
         fetchArticles();
-    } catch (error) {
-        showToast('Erreur lors de la mise à jour', 'error');
+    } catch (err) {
+        showToast(err.message, 'error');
     }
 });
 
-// Close modal
-closeModal.onclick = () => editModal.style.display = 'none';
-window.onclick = (e) => {
-    if (e.target === editModal) editModal.style.display = 'none';
-};
+// Search & Filter Events
+let debounceTimeout;
+searchText.addEventListener('input', () => {
+    clearTimeout(debounceTimeout);
+    debounceTimeout = setTimeout(() => {
+        activeFilters.search = searchText.value;
+        currentPage = 1;
+        applyFilters();
+    }, 200);
+});
 
-// Search filters
 searchBtn.addEventListener('click', () => {
-    currentFilters.searchText = searchText.value.trim();
-    currentFilters.category = filterCategory.value.trim();
-    currentFilters.author = filterAuthor.value.trim();
-    currentFilters.date = filterDate.value;
+    activeFilters.category = filterCategory.value;
+    activeFilters.author = filterAuthor.value;
+    activeFilters.date = filterDate.value;
     currentPage = 1;
     applyFilters();
 });
@@ -265,53 +327,65 @@ resetBtn.addEventListener('click', () => {
     filterCategory.value = '';
     filterAuthor.value = '';
     filterDate.value = '';
-    currentFilters = { searchText: '', category: '', author: '', date: '' };
+    activeFilters = { search: '', category: '', author: '', date: '' };
     currentPage = 1;
     applyFilters();
 });
 
-// Update chart with all articles
-function updateChart(articles) {
-    const categories = {};
-    articles.forEach(article => {
-        const cat = article.category || 'Sans catégorie';
-        categories[cat] = (categories[cat] || 0) + 1;
-    });
-    const ctx = document.getElementById('categoryChart').getContext('2d');
-    if (chart) chart.destroy();
-    chart = new Chart(ctx, {
-        type: 'bar',
+// Chart.js Category Distribution
+function updateChart(categoriesData) {
+    const ctx = document.getElementById('categoryChart');
+    if (!ctx) return;
+
+    const labels = categoriesData.map(c => c.category || 'Général');
+    const data = categoriesData.map(c => c.count);
+
+    if (categoryChartInstance) {
+        categoryChartInstance.destroy();
+    }
+
+    categoryChartInstance = new Chart(ctx, {
+        type: 'doughnut',
         data: {
-            labels: Object.keys(categories),
+            labels,
             datasets: [{
-                label: 'Nombre d\'articles',
-                data: Object.values(categories),
-                backgroundColor: 'rgba(67, 97, 238, 0.6)',
-                borderColor: 'rgba(67, 97, 238, 1)',
-                borderWidth: 1
+                data,
+                backgroundColor: [
+                    '#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899', '#6366f1'
+                ],
+                borderWidth: 0
             }]
         },
         options: {
             responsive: true,
-            maintainAspectRatio: true,
+            maintainAspectRatio: false,
             plugins: {
-                legend: { position: 'top' },
-                tooltip: { callbacks: { label: (ctx) => `${ctx.raw} article(s)` } }
+                legend: {
+                    position: 'bottom',
+                    labels: { color: '#94a3b8', boxWidth: 12, padding: 12 }
+                }
             }
         }
     });
 }
 
-// Helper to escape HTML
+// Theme Toggle
+themeToggle.addEventListener('click', () => {
+    const current = document.documentElement.getAttribute('data-theme');
+    const next = current === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+});
+
+// HTML escaping helper
 function escapeHtml(str) {
     if (!str) return '';
-    return str.replace(/[&<>]/g, function(m) {
-        if (m === '&') return '&amp;';
-        if (m === '<') return '&lt;';
-        if (m === '>') return '&gt;';
-        return m;
-    });
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
 
-// Initial load
+// Init
 fetchArticles();

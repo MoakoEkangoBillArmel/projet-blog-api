@@ -1,113 +1,203 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Blog API - Interface moderne</title>
+    <title>BlogHub API - Plateforme de Gestion d'Articles</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <div class="app-container">
-        <header>
-            <h1>📝 Meba-Blog-API</h1>
-            <p>Gérez vos articles avec style</p>
+    <div id="toast-container" class="toast-container"></div>
+
+    <div class="app-layout">
+        <!-- Barre de navigation supérieure -->
+        <header class="navbar">
+            <div class="nav-brand">
+                <div class="brand-logo">✍️</div>
+                <div class="brand-text">
+                    <h1>BlogHub API</h1>
+                    <span class="badge">v1.2.0 • RESTful</span>
+                </div>
+            </div>
+            <div class="nav-actions">
+                <a href="/api-docs" target="_blank" class="nav-btn docs-btn">
+                    <span>📚 Swagger Docs</span>
+                </a>
+                <a href="https://github.com/MoakoEkangoBillArmel/projet-blog-api" target="_blank" class="nav-btn github-btn">
+                    <svg height="18" width="18" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
+                    </svg>
+                    <span>GitHub</span>
+                </a>
+                <button id="themeToggle" class="nav-btn icon-btn" title="Basculer le thème">🌓</button>
+            </div>
         </header>
 
-        <main>
-            <!-- Formulaire de création -->
-            <section class="card form-card">
-                <h2>✍️ Nouvel article</h2>
-                <form id="articleForm">
-                    <div class="form-group">
-                        <input type="text" id="title" placeholder="Titre *" required>
-                    </div>
-                    <div class="form-group">
-                        <textarea id="content" placeholder="Contenu"></textarea>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <input type="text" id="author" placeholder="Auteur *" required>
-                        </div>
-                        <div class="form-group">
-                            <input type="text" id="category" placeholder="Catégorie">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <input type="text" id="tags" placeholder="Tags (séparés par des virgules)">
-                    </div>
-                    <button type="submit" class="btn btn-primary">Créer l'article</button>
-                </form>
-            </section>
-
-            <!-- Barre de recherche et filtres -->
-            <section class="card search-card">
-                <h2>🔍 Recherche avancée</h2>
-                <div class="search-filters">
-                    <div class="form-group">
-                        <input type="text" id="searchText" placeholder="Rechercher dans titre/contenu...">
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <input type="text" id="filterCategory" placeholder="Catégorie">
-                        </div>
-                        <div class="form-group">
-                            <input type="text" id="filterAuthor" placeholder="Auteur">
-                        </div>
-                        <div class="form-group">
-                            <input type="date" id="filterDate" placeholder="Date exacte">
-                        </div>
-                    </div>
-                    <button id="searchBtn" class="btn btn-secondary">Rechercher</button>
-                    <button id="resetBtn" class="btn btn-outline">Réinitialiser</button>
+        <!-- Statistiques rapides (KPI cards) -->
+        <section class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-icon">📝</div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Total Articles</span>
+                    <span id="kpiTotalArticles" class="kpi-value">0</span>
                 </div>
-            </section>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-icon">🏷️</div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Catégories</span>
+                    <span id="kpiCategories" class="kpi-value">0</span>
+                </div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-icon">👁️</div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Lectures totales</span>
+                    <span id="kpiViews" class="kpi-value">0</span>
+                </div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-icon">⚡</div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Statut API</span>
+                    <span class="kpi-status-live">En ligne (200 OK)</span>
+                </div>
+            </div>
+        </section>
 
-            <!-- Liste des articles avec pagination -->
-            <section class="card articles-card">
-                <h2>📄 Articles</h2>
-                <div id="articlesList" class="articles-grid"></div>
-                <div id="paginationControls" class="pagination"></div>
-            </section>
+        <!-- Grille principale -->
+        <main class="main-content">
+            <!-- Colonne gauche : Formulaire de création & Graphique -->
+            <div class="sidebar-column">
+                <!-- Carte Formulaire -->
+                <section class="card form-card">
+                    <div class="card-header">
+                        <h2>✨ Rédiger un article</h2>
+                        <p>Publiez instantanément vers l'API et la base SQLite</p>
+                    </div>
+                    <form id="articleForm" class="modern-form">
+                        <div class="form-group">
+                            <label for="title">Titre de l'article <span class="required">*</span></label>
+                            <input type="text" id="title" placeholder="ex: Découverte de Node.js et Express" required>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="author">Auteur <span class="required">*</span></label>
+                                <input type="text" id="author" placeholder="ex: Moako Ekango" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="category">Catégorie</label>
+                                <input type="text" id="category" placeholder="ex: Backend, Web, Data" value="Technologie">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="tags">Tags (séparés par des virgules)</label>
+                            <input type="text" id="tags" placeholder="ex: javascript, express, sqlite">
+                        </div>
+                        <div class="form-group">
+                            <label for="content">Contenu</label>
+                            <textarea id="content" rows="5" placeholder="Rédigez votre article ici..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-block">
+                            <span>🚀 Publier l'article</span>
+                        </button>
+                    </form>
+                </section>
 
-            <!-- Graphique des catégories -->
-            <section class="card chart-card">
-                <h2>📊 Statistiques par catégorie</h2>
-                <canvas id="categoryChart" width="400" height="200"></canvas>
-            </section>
+                <!-- Carte Graphique -->
+                <section class="card chart-card">
+                    <div class="card-header">
+                        <h2>📊 Distribution par catégorie</h2>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Colonne droite : Recherche, Filtres & Liste des articles -->
+            <div class="feed-column">
+                <!-- Filtres et Recherche -->
+                <section class="card search-card">
+                    <div class="search-bar">
+                        <span class="search-icon">🔍</span>
+                        <input type="text" id="searchText" placeholder="Rechercher par titre, contenu, tag...">
+                        <button id="resetBtn" class="btn-clear" title="Réinitialiser">✕</button>
+                    </div>
+                    <div class="filter-pills">
+                        <input type="text" id="filterCategory" class="pill-input" placeholder="Filtrer par catégorie">
+                        <input type="text" id="filterAuthor" class="pill-input" placeholder="Filtrer par auteur">
+                        <input type="date" id="filterDate" class="pill-input" title="Filtrer par date">
+                        <button id="searchBtn" class="btn btn-secondary">Filtrer</button>
+                    </div>
+                </section>
+
+                <!-- Liste des articles -->
+                <section class="card feed-card">
+                    <div class="feed-header">
+                        <h2>📄 Articles publiés</h2>
+                        <span id="resultsCount" class="results-badge">Chargement...</span>
+                    </div>
+                    <div id="articlesList" class="articles-grid"></div>
+                    <div id="paginationControls" class="pagination"></div>
+                </section>
+            </div>
         </main>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <p>Conçu & Développé par <strong>MOAKO EKANGO BILL ARMEL</strong> • Développeur Full-Stack & Cybersécurité</p>
+            <p class="footer-links">
+                <a href="https://github.com/MoakoEkangoBillArmel" target="_blank">Profil GitHub</a> •
+                <a href="/api-docs">OpenAPI / Swagger</a> •
+                <a href="/health">Healthcheck</a>
+            </p>
+        </footer>
     </div>
 
     <!-- Modal d'édition -->
     <div id="editModal" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <h2>Modifier l'article</h2>
-            <form id="editForm">
+        <div class="modal-backdrop"></div>
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h2>✏️ Modifier l'article</h2>
+                <button class="modal-close-btn">&times;</button>
+            </div>
+            <form id="editForm" class="modern-form">
+                <input type="hidden" id="editId">
                 <div class="form-group">
-                    <input type="text" id="editTitle" placeholder="Titre *" required>
-                </div>
-                <div class="form-group">
-                    <textarea id="editContent" placeholder="Contenu"></textarea>
+                    <label for="editTitle">Titre <span class="required">*</span></label>
+                    <input type="text" id="editTitle" required>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <input type="text" id="editAuthor" placeholder="Auteur *" required>
+                        <label for="editAuthor">Auteur <span class="required">*</span></label>
+                        <input type="text" id="editAuthor" required>
                     </div>
                     <div class="form-group">
-                        <input type="text" id="editCategory" placeholder="Catégorie">
+                        <label for="editCategory">Catégorie</label>
+                        <input type="text" id="editCategory">
                     </div>
                 </div>
                 <div class="form-group">
-                    <input type="text" id="editTags" placeholder="Tags (séparés par des virgules)">
+                    <label for="editTags">Tags</label>
+                    <input type="text" id="editTags">
                 </div>
-                <input type="hidden" id="editId">
-                <button type="submit" class="btn btn-primary">Enregistrer</button>
+                <div class="form-group">
+                    <label for="editContent">Contenu</label>
+                    <textarea id="editContent" rows="6"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline modal-cancel">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Enregistrer les modifications</button>
+                </div>
             </form>
         </div>
     </div>
-
-    <div id="toast-container"></div>
 
     <script src="script.js"></script>
 </body>

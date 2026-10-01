@@ -1,15 +1,35 @@
 {
   "name": "blog-api",
-  "version": "1.0.0",
-  "description": "API Blog avec Node.js, Express et SQLite",
+  "version": "1.2.0",
+  "description": "API RESTful professionnelle et interface moderne pour la gestion d'articles de blog avec Node.js, Express, SQLite et documentation Swagger.",
   "main": "backend/app.js",
   "scripts": {
     "start": "node backend/app.js",
     "dev": "nodemon backend/app.js"
   },
-  "keywords": ["api", "blog", "express", "sqlite"],
-  "author": "Votre Nom",
-  "license": "ISC",
+  "keywords": [
+    "api",
+    "blog",
+    "express",
+    "sqlite",
+    "swagger",
+    "rest",
+    "nodejs",
+    "dashboard"
+  ],
+  "author": "MOAKO EKANGO BILL ARMEL <armel.moako@facsciences-uy1.cm> (https://github.com/MoakoEkangoBillArmel)",
+  "contributors": [
+    {
+      "name": "MOAKO EKANGO BILL ARMEL",
+      "email": "armel.moako@facsciences-uy1.cm",
+      "url": "https://github.com/MoakoEkangoBillArmel"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MoakoEkangoBillArmel/projet-blog-api.git"
+  },
+  "license": "MIT",
   "dependencies": {
     "body-parser": "^1.20.2",
     "cors": "^2.8.5",
